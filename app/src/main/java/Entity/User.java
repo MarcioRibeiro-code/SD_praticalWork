@@ -1,59 +1,50 @@
 package Entity;
 
-public class User {
+import java.util.Objects;
+import java.util.UUID;
 
-    // Incremental ID
-    private static int LastAssignedID = 0;
+public class User {
 
     MilitarType militarType;
 
     private String name;
+    private String password;
+    private String username;
 
-    private int ID;
+    private final UUID ID;
 
     private String profile;
 
     /**
      * Constructor for input name and entity type only with default profile
-     * @param name name of user
+     * 
+     * @param name        name of user
      * @param militarType type of entity
      */
-    public User(String name, String militarType) {
+    public User(String name, String militarType, String password, String username) {
         this.name = name;
-        this.ID = ++LastAssignedID;
+
         this.profile = null;
-        setMilitarType(militarType);
+        this.password = password;
+        this.username = username;
+        this.militarType = MilitarType.fromString(militarType);
+        this.ID = UUID.randomUUID();
     }
 
     /**
      * Constructor for input name and profile description
-     * @param name name of user
-     * @param profile user profile description
+     * 
+     * @param name        name of user
+     * @param profile     user profile description
      * @param militarType type of entity
      */
-    public User(String name, String profile, String militarType) {
+    public User(String name, String profile, String militarType, String password, String username) {
         this.name = name;
-        this.ID = ++LastAssignedID;
         this.profile = profile;
-        setMilitarType(militarType);
-    }
-
-    /**
-     * Function to change value of MilitarType property receiving a string and convert
-     * @param type entity type
-     */
-    private void setMilitarType(String type) {
-        switch (type.toLowerCase()) {
-            case "soldier":
-                militarType = MilitarType.SOLDIER;
-                break;
-            case "cape":
-                militarType = MilitarType.CAPE;
-                break;
-            case "seargent":
-                militarType = MilitarType.SEARGENT;
-                break;
-        }
+        this.militarType = MilitarType.fromString(militarType);
+        this.password = password;
+        this.username = username;
+        this.ID = UUID.randomUUID();
     }
 
     public MilitarType getMilitarType() {
@@ -64,11 +55,30 @@ public class User {
         return name;
     }
 
-    public int getID() {
+    public UUID getID() {
         return ID;
     }
 
     public String getProfile() {
         return profile;
     }
+
+    public String getPassword() {
+        return password;
+    }
+
+    public String getUsername() {
+        return username;
+    }
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o)
+            return true;
+        if (o == null || getClass() != o.getClass())
+            return false;
+        User user = (User) o;
+        return Objects.equals(username, user.username);
+    }
+
 }

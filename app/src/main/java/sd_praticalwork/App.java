@@ -3,12 +3,68 @@
  */
 package sd_praticalwork;
 
+import java.io.BufferedReader;
+import java.io.BufferedWriter;
+import java.io.InputStreamReader;
+import java.io.OutputStreamWriter;
+import java.net.Socket;
+import java.util.Scanner;
+
+import com.google.gson.Gson;
+
+import Entity.MilitarType;
+import Entity.User;
+import Requests.UserRegister;
+import utils.Requests.Request;
+import utils.Requests.RequestType;
+
 public class App {
-    public String getGreeting() {
-        return "Hello World!";
-    }
+
+    private static final String SERVER_ADDRESS = "localhost";
+    private static final int SERVER_PORT = 2048;
 
     public static void main(String[] args) {
-        System.out.println(new App().getGreeting());
+        try {
+            Socket socket = new Socket(SERVER_ADDRESS, SERVER_PORT);
+            BufferedReader reader = new BufferedReader(new InputStreamReader(socket.getInputStream()));
+            BufferedWriter writer = new BufferedWriter(new OutputStreamWriter(socket.getOutputStream()));
+
+            UserRegister register = new UserRegister(new User("João", MilitarType.SOLDIER.name(), "123", "joao"));
+            // convert the register object to json
+            String registerRequest = new Gson().toJson(new Request<>(RequestType.REGISTER, register));
+            writer.write(registerRequest);
+            writer.newLine();
+            writer.flush();
+
+            // Receive and print server response
+            String registrationResponse = reader.readLine();
+            System.out.println("Server response: " + registrationResponse);
+
+            /*
+             * // User login
+             * System.out.println("\nLogin:");
+             * System.out.print("Enter username: ");
+             * username = scanner.nextLine();
+             * System.out.print("Enter password: ");
+             * password = scanner.nextLine();
+             * 
+             * // Send login request to the server
+             * String loginRequest = "LOGIN " + username + " " + password;
+             * writer.write(loginRequest + "\n");
+             * writer.flush();
+             * 
+             * // Receive and print server response
+             * String loginResponse = reader.readLine();
+             * System.out.println("Server response: " + loginResponse);
+             * 
+             * // Close resources
+             * socket.close();
+             * reader.close();
+             * writer.close();
+             */
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+
     }
 }
