@@ -5,16 +5,21 @@ package sd_praticalwork;
 
 import java.io.BufferedReader;
 import java.io.BufferedWriter;
+import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.OutputStreamWriter;
+import java.net.DatagramPacket;
+import java.net.InetAddress;
+import java.net.MulticastSocket;
 import java.net.Socket;
-import java.util.Scanner;
 
 import com.google.gson.Gson;
 
 import Entity.MilitarType;
 import Entity.User;
+import Requests.Login;
 import Requests.UserRegister;
+import utils.Channel.SendMessageToChannel;
 import utils.Requests.Request;
 import utils.Requests.RequestType;
 
@@ -58,10 +63,11 @@ public class App {
              * System.out.println("Server response: " + loginResponse);
              * 
              * // Close resources
-             * socket.close();
-             * reader.close();
-             * writer.close();
              */
+            socket.close();
+            reader.close();
+            writer.close();
+
         } catch (Exception e) {
             e.printStackTrace();
         }

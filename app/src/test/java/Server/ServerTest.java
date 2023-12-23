@@ -1,8 +1,6 @@
 package Server;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
-import static org.junit.jupiter.api.Assertions.fail;
 
 import java.io.BufferedReader;
 import java.io.BufferedWriter;
@@ -36,9 +34,7 @@ public class ServerTest {
 
     @BeforeEach
     public void setUp() throws Exception {
-
-        DatagramSocket datagramSocket = new DatagramSocket(DATAGRAM_PORT);
-        server = new Server(new ServerSocket(SERVER_PORT), datagramSocket);
+        server = new Server(new ServerSocket(SERVER_PORT));
         new Thread(() -> server.startServer()).start();
         Thread.sleep(1000);
     }

@@ -50,6 +50,8 @@ public class ClientHandler implements Runnable {
                     String messageString = bufferedReader.readLine();
 
                     if (messageString == null) {
+                        System.out.println("Client disconnected! -> " + socket.getInetAddress().getHostAddress() + ":"
+                                + socket.getPort());
                         closeEverything(socket, bufferedReader, bufferedWriter);
                         return;
                     }
