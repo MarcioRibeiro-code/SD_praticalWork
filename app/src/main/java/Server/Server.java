@@ -4,6 +4,7 @@ import java.io.IOException;
 import java.net.DatagramSocket;
 import java.net.ServerSocket;
 import java.net.Socket;
+import java.net.MulticastSocket;
 
 import Entity.MilitarType;
 import utils.Channel.ChannelManager;
@@ -17,6 +18,7 @@ public class Server {
     private final ServerSocket serverSocket;
     protected final ChannelManager channelManager;
     private final ArrayListSync<ClientHandler> clientHandlers;
+    protected final MulticastSocket multicastSocket;
 
     public Server(ServerSocket serverSocket) throws IOException {
         this.serverSocket = serverSocket;
@@ -25,6 +27,7 @@ public class Server {
         channelManager.createChannel(MAIN_GROUP_IP, "main");
         channelManager.createChannel(CAPE_GROUP_IP, MilitarType.CAPE.getTypeString());
         channelManager.createChannel(SEARGENT_GROUP_IP, MilitarType.SEARGENT.getTypeString());
+        this.multicastSocket = new MulticastSocket(port);
     }
 
     public void startServer() {

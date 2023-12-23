@@ -29,15 +29,13 @@ public class Protocol {
     private final ClientHandler clientHandler;
     private final Server server;
     private MulticastSocket multicastSocket;
-    private DatagramSocket datagramSocket;
 
-    public Protocol(ClientHandler clientHandler, Server server) throws IOException {
+    public Protocol(ClientHandler clientHandler, Server server, MulticastSocket multicastSocket) throws IOException {
         this.clientHandler = clientHandler;
         this.server = server;
         this.jsonFileHelper = new JsonFileHelper("files/");
         this.jsonHelper = new Gson();
-        this.multicastSocket = new MulticastSocket(Server.port);
-        this.datagramSocket = new DatagramSocket(Server.port);
+        this.multicastSocket = multicastSocket;
     }
 
     protected synchronized String processMessage(String requestMessage) {
@@ -59,15 +57,16 @@ public class Protocol {
             case REGISTER:
                 return userRegisterHandler(requestMessage, militaryList);
 
-            case CREATE_CHANNEL:
-                return createChannelHandler(requestMessage);
-
-            case JOIN_CHANNEL:
-                return joinChannelHandler(requestMessage);
-
+            /*
+             * case CREATE_CHANNEL:
+             * return createChannelHandler(requestMessage);
+             * 
+             * case JOIN_CHANNEL:
+             * return joinChannelHandler(requestMessage);
+             **/
             case SEND_MESSAGE_TO_CHANNEL:
                 return sendMessageToChannelHandler(requestMessage, militaryList);
-            
+
             default:
                 return this.jsonHelper.toJson(new Response<>(ResponseStatus.ERROR, "Invalid request"));
         }
@@ -92,44 +91,51 @@ public class Protocol {
             }
 
             this.server.channelManager.sendMessageToChannel(sendMessageToChannel.getChannelName(),
-                    this.clientHandler.username, sendMessageToChannel.getMessage(), this.multicastSocket);
+                    this.clientHandler.username, sendMessageToChannel.getMessage(),
+                    this.multicastSocket);
 
             return this.jsonHelper.toJson(new Response<>(ResponseStatus.SUCCESS,
                     RequestType.SEND_MESSAGE_TO_CHANNEL,
                     sendMessageToChannel.getChannelName()));
         } catch (Exception e) {
             System.err.println(e.getMessage());
-            return this.jsonHelper.toJson(new Response<>(ResponseStatus.ERROR, "Invalid request"));
+            return this.jsonHelper.toJson(new Response<>(ResponseStatus.ERROR,
+                    "Invalid request"));
         }
     }
 
-    private String joinChannelHandler(String requestMessage) {
-
-        try {
-            JoinChannel joinChannel = this.jsonHelper.<Request<JoinChannel>>fromJson(requestMessage,
-                    new TypeToken<Request<JoinChannel>>() {
-                    }.getType()).getData();
-
-            boolean channelExists = this.server.channelManager.getChannels()
-                    .get(joinChannel.getChannelName()) != null;
-
-            if (!channelExists) {
-                return this.jsonHelper
-                        .toJson(new Response<>(ResponseStatus.ERROR,
-                                RequestType.JOIN_CHANNEL,
-                                "Channel doesn't exists"));
-            }
-            this.server.channelManager.joinChannel(joinChannel.getChannelName(), joinChannel.getUserID(),
-                    this.multicastSocket);
-
-            return this.jsonHelper.toJson(new Response<>(ResponseStatus.SUCCESS,
-                    RequestType.JOIN_CHANNEL,
-                    joinChannel.getChannelName()));
-        } catch (Exception e) {
-            return this.jsonHelper.toJson(new Response<>(ResponseStatus.ERROR, "Invalid request"));
-        }
-
-    }
+    /*
+     * private String joinChannelHandler(String requestMessage) {
+     * 
+     * try {
+     * JoinChannel joinChannel =
+     * this.jsonHelper.<Request<JoinChannel>>fromJson(requestMessage,
+     * new TypeToken<Request<JoinChannel>>() {
+     * }.getType()).getData();
+     * 
+     * boolean channelExists = this.server.channelManager.getChannels()
+     * .get(joinChannel.getChannelName()) != null;
+     * 
+     * if (!channelExists) {
+     * return this.jsonHelper
+     * .toJson(new Response<>(ResponseStatus.ERROR,
+     * RequestType.JOIN_CHANNEL,
+     * "Channel doesn't exists"));
+     * }
+     * this.server.channelManager.joinChannel(joinChannel.getChannelName(),
+     * joinChannel.getUserID(),
+     * this.multicastSocket);
+     * 
+     * return this.jsonHelper.toJson(new Response<>(ResponseStatus.SUCCESS,
+     * RequestType.JOIN_CHANNEL,
+     * joinChannel.getChannelName()));
+     * } catch (Exception e) {
+     * return this.jsonHelper.toJson(new Response<>(ResponseStatus.ERROR,
+     * "Invalid request"));
+     * }
+     * 
+     * }
+     */
 
     private String createChannelHandler(String requestMessage) {
         synchronized (server.channelManager) {
@@ -200,17 +206,18 @@ public class Protocol {
             }.getType()).getData();
 
             User userdb = militaryList.stream().filter(user -> user.getPassword().equals(login.getPassword())
-                    && user.getName().equals(login.getUsername())).findFirst().orElse(null);
+                    && user.getUsername().equals(login.getUsername())).findFirst().orElse(null);
 
             if (userdb == null) {
                 return this.jsonHelper.toJson(new Response<>(ResponseStatus.ERROR, "Invalid credentials"));
             }
 
-            server.channelManager.joinChannel("main", userdb.getID(),
-                    this.multicastSocket);
+            // server.channelManager.joinChannel("main", userdb.getID(),
+            // this.multicastSocket);
 
-            server.channelManager.joinChannel(userdb.getMilitarType().getTypeString(), userdb.getID(),
-                    this.multicastSocket);
+            // server.channelManager.joinChannel(userdb.getMilitarType().getTypeString(),
+            // userdb.getID(),
+            // this.multicastSocket);
 
             UserLogin userLogin = new UserLogin(userdb);
             this.clientHandler.username = userdb.getUsername();

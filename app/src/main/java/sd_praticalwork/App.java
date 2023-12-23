@@ -33,37 +33,50 @@ public class App {
             Socket socket = new Socket(SERVER_ADDRESS, SERVER_PORT);
             BufferedReader reader = new BufferedReader(new InputStreamReader(socket.getInputStream()));
             BufferedWriter writer = new BufferedWriter(new OutputStreamWriter(socket.getOutputStream()));
+            /*
+             * UserRegister register = new UserRegister(new User("João",
+             * MilitarType.SOLDIER.name(), "123", "joao"));
+             * // convert the register object to json
+             * String registerRequest = new Gson().toJson(new
+             * Request<>(RequestType.REGISTER, register));
+             * writer.write(registerRequest);
+             * writer.newLine();
+             * writer.flush();
+             * 
+             * // Receive and print server response
+             * String registrationResponse = reader.readLine();
+             * System.out.println("Server response: " + registrationResponse);
+             */
 
-            UserRegister register = new UserRegister(new User("João", MilitarType.SOLDIER.name(), "123", "joao"));
-            // convert the register object to json
-            String registerRequest = new Gson().toJson(new Request<>(RequestType.REGISTER, register));
-            writer.write(registerRequest);
+            // User login
+            System.out.println("\nLogin:");
+            Login login = new Login("joao", "123");
+
+            // convert the login object to json
+            String loginRequest = new Gson().toJson(new Request<>(RequestType.LOGIN, login));
+            writer.write(loginRequest);
             writer.newLine();
             writer.flush();
 
             // Receive and print server response
-            String registrationResponse = reader.readLine();
-            System.out.println("Server response: " + registrationResponse);
+            String loginResponse = reader.readLine();
+            System.out.println("Server response: " + loginResponse);
 
-            /*
-             * // User login
-             * System.out.println("\nLogin:");
-             * System.out.print("Enter username: ");
-             * username = scanner.nextLine();
-             * System.out.print("Enter password: ");
-             * password = scanner.nextLine();
-             * 
-             * // Send login request to the server
-             * String loginRequest = "LOGIN " + username + " " + password;
-             * writer.write(loginRequest + "\n");
-             * writer.flush();
-             * 
-             * // Receive and print server response
-             * String loginResponse = reader.readLine();
-             * System.out.println("Server response: " + loginResponse);
-             * 
-             * // Close resources
-             */
+            // send message to channel
+            System.out.println("\nSend message to channel:");
+            SendMessageToChannel sendMessageToChannel = new SendMessageToChannel("main", "Hello world!");
+            String sendMessageToChannelRequest = new Gson()
+                    .toJson(new Request<>(RequestType.SEND_MESSAGE_TO_CHANNEL, sendMessageToChannel));
+            writer.write(sendMessageToChannelRequest);
+            writer.newLine();
+            writer.flush();
+
+            // Receive and print server response
+            String sendMessageToChannelResponse = reader.readLine();
+            System.out.println("Server response: " + sendMessageToChannelResponse);
+
+            // Close resources
+
             socket.close();
             reader.close();
             writer.close();

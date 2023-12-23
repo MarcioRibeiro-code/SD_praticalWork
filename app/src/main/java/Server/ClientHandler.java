@@ -27,11 +27,12 @@ public class ClientHandler implements Runnable {
             this.socket = socket;
             this.server = server;
             this.clientHandlers = clientHandlers;
-            this.protocol = new Protocol(this, server);
+            this.protocol = new Protocol(this, server, server.multicastSocket);
             this.bufferedReader = new BufferedReader(new InputStreamReader(socket.getInputStream()));
             this.bufferedWriter = new BufferedWriter(new OutputStreamWriter(socket.getOutputStream()));
             this.clientHandlers.add(this);
         } catch (IOException e) {
+            System.err.println("Error creating client handler: " + e.getMessage());
             closeEverything(socket, bufferedReader, bufferedWriter);
         }
     }
@@ -64,6 +65,7 @@ public class ClientHandler implements Runnable {
 
                     sendMessage(responseMessage);
                 } catch (Exception e) {
+                    System.err.println("Error receiving message: " + e.getMessage());
                     closeEverything(socket, bufferedReader, bufferedWriter);
                     break;
                 }
