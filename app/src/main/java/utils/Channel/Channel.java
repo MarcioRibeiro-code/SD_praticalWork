@@ -8,21 +8,25 @@ import java.util.HashSet;
 import java.util.Set;
 import java.util.UUID;
 
+
+import Entity.MilitarType;
+
 public class Channel {
     private final String ip;
     private final String name;
+    private final ChannelAuthorization authorization;
     private Set<UUID> users;
     private final int multicastPort = 4445;
 
-    public Channel(String ip, String name) {
+    public Channel(String ip, String name, boolean isPrivate, MilitarType role) {
         this.ip = ip;
         this.name = name;
         this.users = new HashSet<>();
+        this.authorization = new ChannelAuthorization(isPrivate, role);
     }
 
     public void join(UUID userId) {
         users.add(userId);
-        System.out.println("User " + userId + " joined channel " + name);
     }
 
     public void leave(UUID userId) {
@@ -37,10 +41,6 @@ public class Channel {
         }
     }
 
-    public void sendMessage(String message) {
-        System.out.println("Message sent to channel " + name + ": " + message);
-    }
-
     public String getIp() {
         return ip;
     }
@@ -49,7 +49,11 @@ public class Channel {
         return name;
     }
 
-    public boolean sendMessage(String userId, String message, MulticastSocket multicastSocket) {
+    public ChannelAuthorization getAuthorization() {
+        return authorization;
+    }
+
+    public void sendMessage(String userId, String message, MulticastSocket multicastSocket) {
         String fullMessage = "Message from " + userId + " in channel " + name + ": " + message;
         byte[] buffer = fullMessage.getBytes();
 
@@ -59,10 +63,37 @@ public class Channel {
             multicastSocket.send(packet);
 
             System.out.println("Message sent to channel " + name + ": " + fullMessage);
-            return true;
+
         } catch (IOException e) {
             e.printStackTrace();
-            return false;
+            throw new RuntimeException("Error sending message to channel " + name);
+        }
+    }
+
+    public boolean isUserInChannel(UUID userId) {
+        return users.contains(userId);
+    }
+
+    @Override
+    public String toString() {
+        return "Channel: " + name + ", IP: " + ip + "\n";
+    }
+
+    public class ChannelAuthorization {
+        private final boolean isPrivate;
+        private final MilitarType role;
+
+        public ChannelAuthorization(boolean isPrivate, MilitarType role) {
+            this.isPrivate = isPrivate;
+            this.role = role;
+        }
+
+        public boolean isPrivate() {
+            return isPrivate;
+        }
+
+        public MilitarType getRole() {
+            return role;
         }
     }
 }

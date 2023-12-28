@@ -1,11 +1,16 @@
 package Server;
 
 import java.io.IOException;
-import java.net.DatagramSocket;
 import java.net.MulticastSocket;
-import java.util.ArrayList;
+import java.util.Collection;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
+import java.util.UUID;
+import java.util.stream.Collectors;
+
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
 import com.google.gson.Gson;
 import com.google.gson.reflect.TypeToken;
@@ -15,23 +20,24 @@ import Requests.CreateChannel;
 import Requests.Login;
 import Requests.UserLogin;
 import Requests.UserRegister;
+import utils.Channel.Channel;
+import utils.Channel.ChannelResponse;
+import utils.Channel.GetChannelsResponse;
 import utils.Channel.JoinChannel;
 import utils.Channel.SendMessageToChannel;
 import utils.Requests.Request;
 import utils.Requests.RequestType;
 import utils.Responses.Response;
-import utils.Responses.ResponseStatus;
 
 public class Protocol {
 
     private final JsonFileHelper jsonFileHelper;
     private final Gson jsonHelper;
-    private final ClientHandler clientHandler;
     private final Server server;
     private MulticastSocket multicastSocket;
+    private static final Logger logger = Logger.getLogger(Protocol.class.getName());
 
-    public Protocol(ClientHandler clientHandler, Server server, MulticastSocket multicastSocket) throws IOException {
-        this.clientHandler = clientHandler;
+    public Protocol(Server server, MulticastSocket multicastSocket) throws IOException {
         this.server = server;
         this.jsonFileHelper = new JsonFileHelper("files/");
         this.jsonHelper = new Gson();
@@ -42,12 +48,13 @@ public class Protocol {
 
         RequestType requestType;
         List<User> militaryList;
-        System.out.println(requestMessage);
+        logger.log(Level.INFO, "Received Request from client: {0}", requestMessage);
         try {
-            requestType = jsonHelper.fromJson(requestMessage, Request.class).getType();
+            requestType = this.jsonHelper.fromJson(requestMessage, Request.class).getType();
             militaryList = this.jsonFileHelper.deserializeArray("users", User[].class);
         } catch (Exception e) {
-            return this.jsonHelper.toJson(new Response<>(ResponseStatus.ERROR, "Invalid request"));
+            logger.log(Level.SEVERE, "An error occurred while processing the request.", e);
+            return this.jsonHelper.toJson(Response.error(null, requestMessage));
         }
 
         switch (requestType) {
@@ -57,85 +64,204 @@ public class Protocol {
             case REGISTER:
                 return userRegisterHandler(requestMessage, militaryList);
 
-            /*
-             * case CREATE_CHANNEL:
-             * return createChannelHandler(requestMessage);
-             * 
-             * case JOIN_CHANNEL:
-             * return joinChannelHandler(requestMessage);
-             **/
+            case CREATE_CHANNEL:
+                return createChannelHandler(requestMessage);
+
+            case GET_CHANNELS:
+                Collection<Channel> channels = this.server.channelManager.getChannels().values();
+
+                Set<ChannelResponse> channelResponses = channels.stream()
+                        .map(channel -> new ChannelResponse(channel.getName()))
+                        .collect(Collectors.toSet());
+
+                GetChannelsResponse response = new GetChannelsResponse(new HashSet<>(channelResponses));
+
+                return this.jsonHelper.toJson(Response.success(RequestType.GET_CHANNELS, response));
+
+            case GET_JOINABLE_CHANNELS:
+                return getJoinableChannelsHandler(requestMessage, militaryList);
+
+            case GET_JOINED_CHANNELS:
+                return getJoinedChannelsHandler(requestMessage);
+
+            case JOIN_CHANNEL:
+                return joinChannelHandler(requestMessage, militaryList);
+
             case SEND_MESSAGE_TO_CHANNEL:
                 return sendMessageToChannelHandler(requestMessage, militaryList);
 
             default:
-                return this.jsonHelper.toJson(new Response<>(ResponseStatus.ERROR, "Invalid request"));
+                logger.log(Level.SEVERE, "Invalid Request Type: {0}", requestType);
+                return this.jsonHelper.toJson(Response.error(requestType, "Invalid Request Type"));
+        }
+    }
+
+    private String getJoinedChannelsHandler(String requestMessage) {
+        try {
+
+            String userID = this.jsonHelper.<Request<String>>fromJson(requestMessage,
+                    new TypeToken<Request<String>>() {
+                    }.getType()).getData();
+
+            if (userID == null) {
+                logger.log(Level.SEVERE, "UserID is null");
+                return this.jsonHelper.toJson(Response.error(RequestType.GET_JOINED_CHANNELS, "UserID must be set"));
+            }
+
+            Set<ChannelResponse> joinedChannels = this.getJoinedChannels(UUID.fromString(userID)).stream()
+                    .map(channel -> new ChannelResponse(channel.getName())).collect(Collectors.toSet());
+
+            return this.jsonHelper.toJson(Response.success(RequestType.GET_JOINED_CHANNELS,
+                    new GetChannelsResponse(joinedChannels)));
+        } catch (Exception e) {
+            logger.log(Level.SEVERE, "An error occurred while getting joined channels.", e);
+            return this.jsonHelper.toJson(Response.error(RequestType.GET_JOINED_CHANNELS,
+                    "Some error occurred in Get Joined Channels"));
+        }
+    }
+
+    private Set<Channel> getJoinedChannels(UUID userID) {
+        return this.server.channelManager.getChannels().values().stream()
+                .filter(channel -> this.server.channelManager.isUserInChannel(channel.getName(), userID))
+                .collect(Collectors.toSet());
+    }
+
+    private String getJoinableChannelsHandler(String requestMessage, List<User> militaryList) {
+        try {
+            UUID userID = UUID.fromString(this.jsonHelper.<Request<String>>fromJson(requestMessage,
+                    new TypeToken<Request<String>>() {
+                    }.getType()).getData());
+
+            if (userID == null) {
+                logger.log(Level.SEVERE, "UserID is null");
+                return this.jsonHelper.toJson(Response.error(RequestType.GET_JOINABLE_CHANNELS, "UserID must be set"));
+            }
+
+            User user = militaryList.stream()
+                    .filter(military -> military.getID().equals(userID)).findFirst()
+                    .orElse(null);
+
+            if (user == null) {
+                logger.log(Level.SEVERE, "User doesn't exists");
+                return this.jsonHelper.toJson(Response.error(RequestType.GET_JOINABLE_CHANNELS, "User doesn't exists"));
+            }
+
+            Set<ChannelResponse> joinableChannels = this.server.channelManager.getChannels().values().stream()
+                    .filter(channel -> channel.getAuthorization().isPrivate()
+                            && channel.getAuthorization().getRole().equals(user.getMilitarType()))
+                    .map(channel -> new ChannelResponse(channel.getName())).collect(Collectors.toSet());
+
+            joinableChannels.addAll(this.server.channelManager.getChannels().values().stream()
+                    .filter(channel -> !channel.getAuthorization().isPrivate())
+                    .map(channel -> new ChannelResponse(channel.getName())).collect(Collectors.toSet()));
+
+            // NOW REMOVE THE CHANNELS THAT THE USER IS ALREADY IN
+            Set<ChannelResponse> joinedChannels = this.getJoinedChannels(userID).stream()
+                    .map(channel -> new ChannelResponse(channel.getName())).collect(Collectors.toSet());
+
+           System.out.println(joinableChannels.removeAll(joinedChannels)); 
+
+            return this.jsonHelper.toJson(Response.success(RequestType.GET_JOINABLE_CHANNELS,
+                    new GetChannelsResponse(joinableChannels)));
+        } catch (Exception e) {
+            logger.log(Level.SEVERE, "An error occurred while getting joinable channels.", e);
+            return this.jsonHelper.toJson(Response.error(RequestType.GET_JOINABLE_CHANNELS,
+                    "Some error occurred in Get Joinable Channels"));
         }
     }
 
     private String sendMessageToChannelHandler(String requestMessage, List<User> militaryList) {
         try {
-            SendMessageToChannel sendMessageToChannel = this.jsonHelper
+            SendMessageToChannel sendMsgRequest = this.jsonHelper
                     .<Request<SendMessageToChannel>>fromJson(requestMessage,
                             new TypeToken<Request<SendMessageToChannel>>() {
                             }.getType())
                     .getData();
 
+            String channelName = sendMsgRequest.getChannelName();
+            String sender = sendMsgRequest.getSender();
+            String message = sendMsgRequest.getMessage();
+
             boolean channelExists = this.server.channelManager.getChannels()
-                    .get(sendMessageToChannel.getChannelName()) != null;
+                    .get(sendMsgRequest.getChannelName()) != null;
 
             if (!channelExists) {
+                logger.log(Level.SEVERE, "Channel doesn't exists");
                 return this.jsonHelper
-                        .toJson(new Response<>(ResponseStatus.ERROR,
-                                RequestType.SEND_MESSAGE_TO_CHANNEL,
-                                "Channel doesn't exists"));
+                        .toJson(Response.error(RequestType.SEND_MESSAGE_TO_CHANNEL, "Channel doesn't exists"));
             }
 
-            this.server.channelManager.sendMessageToChannel(sendMessageToChannel.getChannelName(),
-                    this.clientHandler.username, sendMessageToChannel.getMessage(),
-                    this.multicastSocket);
+            // Get the user from the list of users, and check if the user is in the channel
+            User senderUser = militaryList.stream()
+                    .filter(user -> user.getUsername().equals(sendMsgRequest.getSender())).findFirst()
+                    .orElse(null);
 
-            return this.jsonHelper.toJson(new Response<>(ResponseStatus.SUCCESS,
-                    RequestType.SEND_MESSAGE_TO_CHANNEL,
-                    sendMessageToChannel.getChannelName()));
+            if (senderUser == null) {
+                logger.log(Level.SEVERE, "User doesn't exists");
+                return this.jsonHelper.toJson(Response.error(RequestType.SEND_MESSAGE_TO_CHANNEL,
+                        "User doesn't exists"));
+            }
+
+            if (!this.server.channelManager.isUserInChannel(channelName, senderUser.getID())) {
+                logger.log(Level.SEVERE, "Sender user is not in the channel");
+                return jsonHelper.toJson(
+                        Response.error(RequestType.SEND_MESSAGE_TO_CHANNEL, "Sender user is not in the channel"));
+            }
+
+            this.server.channelManager.sendMessageToChannel(channelName, sender, message, this.multicastSocket);
+            logger.log(Level.INFO, "Message sent to channel {0}", channelName);
+            return jsonHelper.toJson(Response.success(RequestType.SEND_MESSAGE_TO_CHANNEL,
+                    "Message sent to channel " + channelName));
         } catch (Exception e) {
-            System.err.println(e.getMessage());
-            return this.jsonHelper.toJson(new Response<>(ResponseStatus.ERROR,
-                    "Invalid request"));
+            logger.log(Level.SEVERE, "An error occurred while sending message to channel.", e);
+            return this.jsonHelper.toJson(Response.error(RequestType.SEND_MESSAGE_TO_CHANNEL,
+                    "Some error occurred in Send Message to Channel"));
         }
     }
 
-    /*
-     * private String joinChannelHandler(String requestMessage) {
-     * 
-     * try {
-     * JoinChannel joinChannel =
-     * this.jsonHelper.<Request<JoinChannel>>fromJson(requestMessage,
-     * new TypeToken<Request<JoinChannel>>() {
-     * }.getType()).getData();
-     * 
-     * boolean channelExists = this.server.channelManager.getChannels()
-     * .get(joinChannel.getChannelName()) != null;
-     * 
-     * if (!channelExists) {
-     * return this.jsonHelper
-     * .toJson(new Response<>(ResponseStatus.ERROR,
-     * RequestType.JOIN_CHANNEL,
-     * "Channel doesn't exists"));
-     * }
-     * this.server.channelManager.joinChannel(joinChannel.getChannelName(),
-     * joinChannel.getUserID(),
-     * this.multicastSocket);
-     * 
-     * return this.jsonHelper.toJson(new Response<>(ResponseStatus.SUCCESS,
-     * RequestType.JOIN_CHANNEL,
-     * joinChannel.getChannelName()));
-     * } catch (Exception e) {
-     * return this.jsonHelper.toJson(new Response<>(ResponseStatus.ERROR,
-     * "Invalid request"));
-     * }
-     * 
-     * }
-     */
+    private String joinChannelHandler(String requestMessage, List<User> militaryList) {
+
+        try {
+            JoinChannel joinChannel = this.jsonHelper.<Request<JoinChannel>>fromJson(requestMessage,
+                    new TypeToken<Request<JoinChannel>>() {
+                    }.getType()).getData();
+
+            Channel channel = this.server.channelManager.getChannels()
+                    .get(joinChannel.getChannelName());
+
+            User user = militaryList.stream()
+                    .filter(military -> military.getID().equals(joinChannel.getUserID())).findFirst()
+                    .orElse(null);
+
+            if (user == null) {
+                return this.jsonHelper.toJson(Response.error(RequestType.JOIN_CHANNEL, "User doesn't exists"));
+            }
+            if (channel == null) {
+                return this.jsonHelper
+                        .toJson(Response.error(RequestType.JOIN_CHANNEL, "Channel doesn't exists"));
+            }
+
+            // IF THE CHANNEL IS PRIVATE, check if the user is allowed to join by comparing
+            // the role
+
+            if (channel.getAuthorization().isPrivate()) {
+                if (!channel.getAuthorization().getRole().equals(user.getMilitarType())) {
+                    return this.jsonHelper.toJson(Response.error(RequestType.JOIN_CHANNEL,
+                            "User is not allowed to join this channel"));
+                }
+            }
+            this.server.channelManager.joinChannel(joinChannel.getChannelName(),
+                    joinChannel.getUserID(),
+                    this.multicastSocket);
+
+            return this.jsonHelper.toJson(Response.success(RequestType.JOIN_CHANNEL,
+                    "User joined channel " + joinChannel.getChannelName()));
+        } catch (Exception e) {
+            return this.jsonHelper.toJson(Response.error(RequestType.JOIN_CHANNEL,
+                    "Some error occurred in Join Channel : " + e.getMessage()));
+        }
+
+    }
 
     private String createChannelHandler(String requestMessage) {
         synchronized (server.channelManager) {
@@ -145,25 +271,27 @@ public class Protocol {
                         }.getType()).getData();
 
                 boolean channelExists = this.server.channelManager.getChannels()
-                        .get(createChannel.getChannel().getName()) != null;
+                        .get(createChannel.channelName()) != null;
 
                 if (channelExists) {
+                    logger.log(Level.SEVERE, "Channel already exists");
                     return this.jsonHelper
-                            .toJson(new Response<>(ResponseStatus.ERROR,
-                                    RequestType.CREATE_CHANNEL,
-                                    "Channel already exists"));
+                            .toJson(Response.error(RequestType.CREATE_CHANNEL, "Channel already exists"));
                 }
 
-                this.server.channelManager.createChannel(createChannel.getChannel().getIp(),
-                        createChannel.getChannel().getName());
+                this.server.channelManager.createChannel(createChannel.channelName(),
+                        createChannel.isPrivate(), createChannel.role());
                 // TODO: SEE THIS, I'M NOT SURE IF IT'S RIGHT
                 this.jsonFileHelper.serialize("channels",
                         new HashSet<>(this.server.channelManager.getChannels().values()));
 
-                return this.jsonHelper.toJson(new Response<>(ResponseStatus.SUCCESS, RequestType.CREATE_CHANNEL,
-                        createChannel.getChannel()));
+                logger.log(Level.INFO, "Channel {0} created", createChannel.channelName());
+                return this.jsonHelper.toJson(Response.success(RequestType.CREATE_CHANNEL,
+                        "Channel " + createChannel.channelName() + " created"));
             } catch (Exception e) {
-                return this.jsonHelper.toJson(new Response<>(ResponseStatus.ERROR, "Invalid request"));
+                logger.log(Level.SEVERE, "An error occurred while creating channel.", e);
+                return this.jsonHelper.toJson(Response.error(RequestType.CREATE_CHANNEL,
+                        "Some error occurred in Create Channel"));
             }
         }
     }
@@ -178,10 +306,9 @@ public class Protocol {
                     .anyMatch(user -> user.getUsername().equals(userRegister.getUser().getUsername()));
 
             if (userExists) {
+                logger.log(Level.SEVERE, "User already exists");
                 return this.jsonHelper
-                        .toJson(new Response<>(ResponseStatus.ERROR,
-                                RequestType.REGISTER,
-                                "User already exists"));
+                        .toJson(Response.error(RequestType.REGISTER, "User already exists"));
             }
 
             // String name, String militarType, String password, String username
@@ -191,11 +318,13 @@ public class Protocol {
 
             // TODO: SEE THIS, I'M NOT SURE IF IT'S RIGHT
             this.jsonFileHelper.serialize("users", new HashSet<>(militaryList));
-
-            return this.jsonHelper.toJson(new Response<>(ResponseStatus.SUCCESS, RequestType.REGISTER, newUser));
+            logger.log(Level.INFO, "User {0} registered", userRegister.getUser().getUsername());
+            return this.jsonHelper.toJson(Response.success(RequestType.REGISTER,
+                    "User " + userRegister.getUser().getUsername() + " registered"));
 
         } catch (Exception e) {
-            return this.jsonHelper.toJson(new Response<>(ResponseStatus.ERROR, "Invalid request"));
+            System.err.println(e.getMessage());
+            return this.jsonHelper.toJson(Response.error(RequestType.REGISTER, "Error occurred in User Register"));
         }
     }
 
@@ -209,9 +338,11 @@ public class Protocol {
                     && user.getUsername().equals(login.getUsername())).findFirst().orElse(null);
 
             if (userdb == null) {
-                return this.jsonHelper.toJson(new Response<>(ResponseStatus.ERROR, "Invalid credentials"));
+                logger.log(Level.SEVERE, "Invalid username or password");
+                return this.jsonHelper.toJson(Response.error(RequestType.LOGIN, "Invalid username or password"));
             }
 
+            // TODO: IS THIS THE CORRECT IMPLEMENTATION?
             // server.channelManager.joinChannel("main", userdb.getID(),
             // this.multicastSocket);
 
@@ -219,13 +350,14 @@ public class Protocol {
             // userdb.getID(),
             // this.multicastSocket);
 
-            UserLogin userLogin = new UserLogin(userdb);
-            this.clientHandler.username = userdb.getUsername();
+            UserLogin userLogin = new UserLogin(userdb.getUsername(), userdb.getMilitarType(), userdb.getID());
 
-            return this.jsonHelper.toJson(new Response<>(ResponseStatus.SUCCESS, RequestType.LOGIN, userLogin));
+            logger.log(Level.INFO, "User {0} logged in", userdb.getUsername());
+            return this.jsonHelper.toJson(Response.success(RequestType.LOGIN, userLogin));
 
         } catch (Exception e) {
-            return this.jsonHelper.toJson(new Response<>(ResponseStatus.ERROR, "Invalid request"));
+            logger.log(Level.SEVERE, "An error occurred while logging in.", e);
+            return this.jsonHelper.toJson(Response.error(RequestType.LOGIN, "Error occurred in User Login"));
         }
     }
 

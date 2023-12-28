@@ -4,44 +4,41 @@ import utils.Requests.RequestType;
 
 public class Response<T> {
 
-    public ResponseStatus status;
-    public RequestType type;
-    public String message;
-    public T data;
+    private final ResponseStatus status;
+    private final RequestType type;
+    private final String message;
+    private final T data;
 
-    public Response(ResponseStatus status, RequestType type, String message, T data) {
+    private Response(ResponseStatus status, RequestType type, String message, T data) {
         this.status = status;
         this.type = type;
         this.message = message;
         this.data = data;
     }
 
-    public Response(ResponseStatus status, RequestType type, T data) {
-       this(status,type,null,data);
+    public static <T> Response<T> success(RequestType type, T data) {
+        return new Response<>(ResponseStatus.SUCCESS, type, null, data);
     }
 
-    public Response(ResponseStatus status, RequestType type) {
-        this(status, type, null, null);
+    public static <T> Response<T> error(RequestType type, String message) {
+        return new Response<>(ResponseStatus.ERROR, type, message, null);
     }
 
-    public Response(ResponseStatus status, String message) {
-        this(status, null, message, null);
+    // Add other utility methods, getters, etc.
+
+    public ResponseStatus getStatus() {
+        return status;
     }
 
-    public Response(RequestType type) {
-        this(null, type, null, null);
-
+    public RequestType getType() {
+        return type;
     }
 
-    public Response() {
-
+    public String getMessage() {
+        return message;
     }
 
     public T getData() {
-        return this.data;
-    }
-
-    public ResponseStatus getStatus() {
-        return this.status;
+        return data;
     }
 }

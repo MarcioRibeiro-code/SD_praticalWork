@@ -1,9 +1,10 @@
 package Server;
 
 import java.io.IOException;
-import java.net.DatagramSocket;
 import java.net.ServerSocket;
 import java.net.Socket;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 import java.net.MulticastSocket;
 
 import Entity.MilitarType;
@@ -12,21 +13,23 @@ import utils.Channel.ChannelManager;
 public class Server {
     protected static final int port = 4445;
 
-    protected static final String MAIN_GROUP_IP = "224.0.0.1";
-    private static final String CAPE_GROUP_IP = "224.0.0.2";
-    private static final String SEARGENT_GROUP_IP = "224.0.0.3";
+    // protected static final String MAIN_GROUP_IP = "224.0.0.1";
+    // private static final String CAPE_GROUP_IP = "224.0.0.2";
+    // private static final String SEARGENT_GROUP_IP = "224.0.0.3";
     private final ServerSocket serverSocket;
     protected final ChannelManager channelManager;
     private final ArrayListSync<ClientHandler> clientHandlers;
     protected final MulticastSocket multicastSocket;
 
+    private static final Logger logger = Logger.getLogger(Server.class.getName());
+
     public Server(ServerSocket serverSocket) throws IOException {
         this.serverSocket = serverSocket;
         this.clientHandlers = new ArrayListSync<ClientHandler>();
         this.channelManager = new ChannelManager();
-        channelManager.createChannel(MAIN_GROUP_IP, "main");
-        channelManager.createChannel(CAPE_GROUP_IP, MilitarType.CAPE.getTypeString());
-        channelManager.createChannel(SEARGENT_GROUP_IP, MilitarType.SEARGENT.getTypeString());
+        channelManager.createChannel("main", false, null);
+        channelManager.createChannel(MilitarType.CAPE.getTypeString(), true, MilitarType.CAPE);
+        channelManager.createChannel(MilitarType.SEARGENT.getTypeString(), true, MilitarType.SEARGENT);
         this.multicastSocket = new MulticastSocket(port);
     }
 
@@ -35,22 +38,24 @@ public class Server {
         try {
             while (true) {
                 Socket socket = serverSocket.accept();
-                System.out.println("New client connected! -> " + socket.getInetAddress().getHostAddress() + ":"
-                        + socket.getPort());
+                String clientInfo = socket.getInetAddress().getHostAddress() + ":" + socket.getPort();
+                logger.log(Level.INFO, "New client connected! -> {0}", clientInfo);
 
                 new Thread(new ClientHandler(clientHandlers, socket, this)).start();
             }
         } catch (IOException e) {
+            logger.log(Level.SEVERE, "An error occurred while accepting a new client connection.", e);
             closeServerSocket();
         }
     }
 
     public void closeServerSocket() {
         try {
-            if (serverSocket != null)
+            if (serverSocket != null) {
                 serverSocket.close();
+            }
         } catch (IOException e) {
-            e.printStackTrace();
+            logger.log(Level.SEVERE, "An error occurred while closing the server socket.", e);
         }
     }
 

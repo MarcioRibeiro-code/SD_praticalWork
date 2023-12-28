@@ -10,7 +10,6 @@ public class ClientHandler implements Runnable {
     protected Protocol protocol;
     protected ArrayListSync<ClientHandler> clientHandlers;
     protected Server server;
-    protected String username;
 
     /*
      * Have a List of LocalNode to store all LocalNodes, that being said the list of
@@ -27,7 +26,7 @@ public class ClientHandler implements Runnable {
             this.socket = socket;
             this.server = server;
             this.clientHandlers = clientHandlers;
-            this.protocol = new Protocol(this, server, server.multicastSocket);
+            this.protocol = new Protocol(server, server.multicastSocket);
             this.bufferedReader = new BufferedReader(new InputStreamReader(socket.getInputStream()));
             this.bufferedWriter = new BufferedWriter(new OutputStreamWriter(socket.getOutputStream()));
             this.clientHandlers.add(this);

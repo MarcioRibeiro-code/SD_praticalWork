@@ -19,12 +19,17 @@ repositories {
 dependencies {
     // Use JUnit Jupiter for testing.
     testImplementation 'org.junit.jupiter:junit-jupiter:5.9.1'
+    testRuntimeOnly 'org.junit.jupiter:junit-jupiter-engine:5.9.1'
 
     // This dependency is used by the application.
     implementation 'com.google.guava:guava:31.1-jre'
 
     // Gson
     implementation 'com.google.code.gson:gson:2.8.9'
+
+    //Password
+    implementation 'com.password4j:password4j:1.6.3'
+    implementation group: 'com.intellij', name: 'forms_rt', version: '7.0.3'
 }
 
 application {
