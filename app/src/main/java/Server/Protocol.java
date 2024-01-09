@@ -2,17 +2,15 @@ package Server;
 
 import java.io.IOException;
 import java.net.MulticastSocket;
-import java.util.Collection;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Set;
-import java.util.UUID;
+import java.util.*;
 import java.util.stream.Collectors;
 
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
+import Gui.Client;
 import com.google.gson.Gson;
+import com.google.gson.JsonSyntaxException;
 import com.google.gson.reflect.TypeToken;
 
 import Entity.User;
@@ -20,17 +18,14 @@ import Requests.CreateChannel;
 import Requests.Login;
 import Requests.UserLogin;
 import Requests.UserRegister;
-import utils.Channel.Channel;
-import utils.Channel.ChannelResponse;
-import utils.Channel.GetChannelsResponse;
-import utils.Channel.JoinChannel;
-import utils.Channel.SendMessageToChannel;
+import utils.Channel.*;
 import utils.Requests.Request;
 import utils.Requests.RequestType;
 import utils.Responses.Response;
 
 public class Protocol {
 
+    protected UUID User_ID;
     private final JsonFileHelper jsonFileHelper;
     private final Gson jsonHelper;
     private final Server server;
@@ -42,7 +37,35 @@ public class Protocol {
         this.jsonFileHelper = new JsonFileHelper("files/");
         this.jsonHelper = new Gson();
         this.multicastSocket = multicastSocket;
+
+
+        new Thread(() -> {
+
+            while (true) {
+                try {
+                    if (User_ID != null) {
+                        processInbox();
+                    }
+                    Thread.sleep(300000);
+                } catch (InterruptedException e) {
+                    e.printStackTrace();
+                }
+            }
+        }).start();
     }
+
+
+    private void processInbox() {
+        List<String> inbox = server.Inbox.get(User_ID);
+
+        for (String message : inbox){
+            SendMessageToUser(message);
+        }
+        inbox.clear();
+    }
+
+
+
 
     protected synchronized String processMessage(String requestMessage) {
 
@@ -167,6 +190,55 @@ public class Protocol {
             logger.log(Level.SEVERE, "An error occurred while getting joinable channels.", e);
             return this.jsonHelper.toJson(Response.error(RequestType.GET_JOINABLE_CHANNELS,
                     "Some error occurred in Get Joinable Channels"));
+        }
+    }
+
+    private String SendMessageToUser(String RequestMessage) {
+        try {
+            SendMessageToUser sendMessageToUser = this.jsonHelper
+                    .<Request<SendMessageToUser>>fromJson(RequestMessage,
+                            new TypeToken<Request<SendMessageToUser>>() {
+                            }.getType())
+                    .getData();
+
+
+            UUID receiver = sendMessageToUser.getReceiver();
+            String Message = sendMessageToUser.getMessage();
+
+
+            List<ClientHandler> listClientHandlers = this.server.getClientHandlers();
+
+
+            for (ClientHandler temp : listClientHandlers) {
+                if (temp.protocol.User_ID != null) {
+                    if (temp.protocol.User_ID == receiver) {
+                        String temp2 = this.jsonHelper.toJson(Response.success(RequestType.SEND_MESSAGE_TO_USER,
+                                new ReceivedMessages(Message)));
+                        temp.sendMessage(temp2);
+                        return this.jsonHelper.toJson(Response.success(RequestType.FEEDBACK, "Message sent to user"));
+                    }
+                }
+            }
+
+            HashMap<UUID, List<String>> list = new HashMap<>(server.Inbox);
+
+            if (list.containsKey(receiver)) {
+                List<String> userMessages = list.get(receiver);
+
+
+                userMessages.add(RequestMessage);
+
+
+                list.put(receiver, userMessages);
+            } else {
+                List<String> messages = new ArrayList<>();
+                messages.add(RequestMessage);
+                list.put(receiver, messages);
+            }
+
+            return this.jsonHelper.toJson(Response.success(RequestType.FEEDBACK, "Message sent to user and went to inbox"));
+        } catch (Exception e) {
+            throw new RuntimeException(e);
         }
     }
 
@@ -351,6 +423,8 @@ public class Protocol {
             // this.multicastSocket);
 
             UserLogin userLogin = new UserLogin(userdb.getUsername(), userdb.getMilitarType(), userdb.getID());
+
+            this.User_ID = userdb.getID();
 
             logger.log(Level.INFO, "User {0} logged in", userdb.getUsername());
             return this.jsonHelper.toJson(Response.success(RequestType.LOGIN, userLogin));

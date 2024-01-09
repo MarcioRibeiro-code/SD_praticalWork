@@ -2,6 +2,7 @@ package Server;
 
 import java.io.*;
 import java.net.Socket;
+import java.util.UUID;
 
 public class ClientHandler implements Runnable {
     protected Socket socket;
@@ -73,7 +74,7 @@ public class ClientHandler implements Runnable {
 
     }
 
-    private void sendMessage(String sendMessage) {
+    protected void sendMessage(String sendMessage) {
         try {
             bufferedWriter.write(sendMessage);
             bufferedWriter.newLine();

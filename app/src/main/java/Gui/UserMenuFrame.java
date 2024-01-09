@@ -147,7 +147,6 @@ public class UserMenuFrame extends JFrame {
         for (ChannelResponse channel : channels2) {
             channelSelectorComboBox.addItem(channel.getName());
         }
-
     }
 
     public void joinSelectedChannel() {

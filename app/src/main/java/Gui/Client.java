@@ -23,6 +23,7 @@ import java.nio.channels.NotYetConnectedException;
 
 import Requests.UserLogin;
 import utils.Channel.GetChannelsResponse;
+import utils.Channel.SendMessageToChannel;
 import utils.Requests.RequestType;
 import utils.Responses.Response;
 import utils.Responses.ResponseStatus;
@@ -246,6 +247,8 @@ public class Client {
 
                 userMenuFrame.updateJoinableChannels(getJoinableChannelsResponse.getData().getChannels());
                 break;
+
+
 
             default:
                 break;

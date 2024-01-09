@@ -3,6 +3,10 @@ package Server;
 import java.io.IOException;
 import java.net.ServerSocket;
 import java.net.Socket;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Objects;
+import java.util.UUID;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.net.MulticastSocket;
@@ -13,13 +17,14 @@ import utils.Channel.ChannelManager;
 public class Server {
     protected static final int port = 4445;
 
-    // protected static final String MAIN_GROUP_IP = "224.0.0.1";
-    // private static final String CAPE_GROUP_IP = "224.0.0.2";
-    // private static final String SEARGENT_GROUP_IP = "224.0.0.3";
+    // protected static final String MAIN_GROUP_IP = "224.0.1."; ++
+    // private static final String CAPE_GROUP_IP = "224.0.2."; ++
+    // private static final String SEARGENT_GROUP_IP = "224.0.03."; ++
     private final ServerSocket serverSocket;
     protected final ChannelManager channelManager;
     private final ArrayListSync<ClientHandler> clientHandlers;
     protected final MulticastSocket multicastSocket;
+    protected HashMap<UUID, List<String>> Inbox;
 
     private static final Logger logger = Logger.getLogger(Server.class.getName());
 
@@ -57,6 +62,15 @@ public class Server {
         } catch (IOException e) {
             logger.log(Level.SEVERE, "An error occurred while closing the server socket.", e);
         }
+    }
+
+
+    /**
+     * Getter to return list clientHandlers
+     * @return
+     */
+    public ArrayListSync<ClientHandler> getClientHandlers() {
+        return clientHandlers;
     }
 
     /*
