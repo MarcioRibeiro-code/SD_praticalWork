@@ -22,4 +22,9 @@ public class SendMessageToChannel {
     public String getSender() {
         return this.sender;
     }
+
+    @Override
+    public String toString() {
+        return "Sender: " + this.sender + "->" + "Message: " + this.message;
+    }
 }

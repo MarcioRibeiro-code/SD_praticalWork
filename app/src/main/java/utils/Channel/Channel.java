@@ -8,6 +8,7 @@ import java.util.HashSet;
 import java.util.Set;
 import java.util.UUID;
 
+import com.google.gson.Gson;
 
 import Entity.MilitarType;
 
@@ -17,12 +18,14 @@ public class Channel {
     private final ChannelAuthorization authorization;
     private Set<UUID> users;
     private final int multicastPort = 4445;
+    private Gson gson = new Gson();
 
     public Channel(String ip, String name, boolean isPrivate, MilitarType role) {
         this.ip = ip;
         this.name = name;
         this.users = new HashSet<>();
         this.authorization = new ChannelAuthorization(isPrivate, role);
+        this.gson = new Gson();
     }
 
     public void join(UUID userId) {
@@ -54,15 +57,14 @@ public class Channel {
     }
 
     public void sendMessage(String userId, String message, MulticastSocket multicastSocket) {
-        String fullMessage = "Message from " + userId + " in channel " + name + ": " + message;
+        SendMessageToChannel sendMessageToChannel = new SendMessageToChannel(message, userId, message);
+        String fullMessage = gson.toJson(sendMessageToChannel);
         byte[] buffer = fullMessage.getBytes();
 
         // Send the message using the multicast socket
         try {
             DatagramPacket packet = new DatagramPacket(buffer, buffer.length, InetAddress.getByName(ip), multicastPort);
             multicastSocket.send(packet);
-
-            System.out.println("Message sent to channel " + name + ": " + fullMessage);
 
         } catch (IOException e) {
             e.printStackTrace();

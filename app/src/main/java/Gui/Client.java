@@ -178,6 +178,13 @@ public class Client {
                 showMessageDialog(initialFrame, message);
                 break;
 
+            case FEEDBACK:
+                Response<String> feedbackResponse = jsonHelper.<Response<String>>fromJson(responseMessage,
+                        new TypeToken<Response<String>>() {
+                        }.getType());
+
+                showMessageDialog(userMenuFrame, feedbackResponse.getData());
+                break;
             /*
              * case GET_CHANNELS:
              * Response<GetChannelsResponse> getChannelsResponse =

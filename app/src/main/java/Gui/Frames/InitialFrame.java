@@ -231,7 +231,7 @@ public class InitialFrame extends JFrame {
     public void showUserMenuFrame(UserLogin user) {
         UserMenuFrame userMenuFrame = new UserMenuFrame(client, user);
         this.client.setUserMenuFrame(userMenuFrame);
-        this.setVisible(false);
+        this.dispose();
         userMenuFrame.setVisible(true);
     }
 }

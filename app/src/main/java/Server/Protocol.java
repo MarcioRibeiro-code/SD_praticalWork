@@ -210,7 +210,7 @@ public class Protocol {
 
             this.server.channelManager.sendMessageToChannel(channelName, sender, message, this.multicastSocket);
             logger.log(Level.INFO, "Message sent to channel {0}", channelName);
-            return jsonHelper.toJson(Response.success(RequestType.SEND_MESSAGE_TO_CHANNEL,
+            return jsonHelper.toJson(Response.success(RequestType.FEEDBACK,
                     "Message sent to channel " + channelName));
         } catch (Exception e) {
             logger.log(Level.SEVERE, "An error occurred while sending message to channel.", e);
