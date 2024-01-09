@@ -1,24 +1,26 @@
 package utils.Channel;
 
+import java.util.UUID;
+
 public class SendMessageToUser {
 
-    private final String Sender;
-    private final String Receiver;
+    private final UUID Sender;
+    private final UUID Receiver;
 
     private final String Message;
 
-    public SendMessageToUser(String sender, String receiver, String message) {
+    public SendMessageToUser(UUID sender, UUID receiver, String message) {
         Sender = sender;
         Receiver = receiver;
         Message = message;
     }
 
 
-    public String getSender() {
+    public UUID getSender() {
         return Sender;
     }
 
-    public String getReceiver() {
+    public UUID getReceiver() {
         return Receiver;
     }
 
