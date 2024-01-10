@@ -48,6 +48,9 @@ public class Protocol {
         new Thread(() -> {
             while (true) {
                 try {
+                    // EVERY 2 MINUTES
+                    Thread.sleep(120000);
+
                     // Get the stats
                     String statusString = Server.getStats().toString();
 
@@ -57,8 +60,7 @@ public class Protocol {
                     this.server.getClientHandlers().forEach(clientHandler -> {
                         clientHandler.sendMessage(statsJson);
                     });
-                    // EVERY 2 MINUTES
-                    Thread.sleep(120000);
+
                 } catch (Exception e) {
                     System.out.println("Error sending stats");
                 }
@@ -221,7 +223,7 @@ public class Protocol {
                 return this.jsonHelper.toJson(Response.error(RequestType.REQUEST_TASK, "User doesn't exists"));
             }
             if (!channel.isUserInChannel(user.getID())) {
-                return this.jsonHelper.toJson(Response.error(RequestType.REQUEST_TASK, "User must enter channel main"));
+                return this.jsonHelper.toJson(Response.error(RequestType.REQUEST_TASK, "User must enter channel" + channel));
             }
 
             this.server.channelManager.sendMessageToChannel(type, channelName, sender, message, this.multicastSocket);

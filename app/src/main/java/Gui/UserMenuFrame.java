@@ -1,6 +1,8 @@
 package Gui;
 
 import Gui.Dialogs.SendMessageDialog;
+import Gui.Dialogs.SendMessageToChannelDialog;
+
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.intellij.uiDesigner.core.GridConstraints;
@@ -9,6 +11,7 @@ import com.intellij.uiDesigner.core.Spacer;
 
 import Entity.MilitarType;
 import Gui.Dialogs.CreateChannelDialog;
+import Gui.Dialogs.RequestTaskDialog;
 import Requests.CreateChannel;
 import Requests.UserLogin;
 import utils.Channel.*;
@@ -22,10 +25,8 @@ import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
-import java.util.ArrayList;
+import java.util.*;
 import java.util.List;
-import java.util.Set;
-import java.util.HashMap;
 
 import static javax.swing.JOptionPane.showMessageDialog;
 
@@ -112,12 +113,13 @@ public class UserMenuFrame extends JFrame {
         sendMessageToChannelButton.addActionListener(new ActionListener() {
             @Override
             public void actionPerformed(ActionEvent e) {
-                // Create a request to get the military list
-                SendMessageToChannel sendMessageToChannel = new SendMessageToChannel(
-                        RequestType.SEND_MESSAGE_TO_CHANNEL, "main", user.getUsername(), "ola");
-                String jsonRequest = jsonHelper
-                        .toJson(new Request<>(RequestType.SEND_MESSAGE_TO_CHANNEL, sendMessageToChannel));
-                client.sendMessage(jsonRequest);
+                if (channelSelectorComboBox.getSelectedItem() != null) {
+                    String channel = channelSelectorComboBox.getSelectedItem().toString();
+                    openSendMessageToChannelDialog(channel);
+                } else {
+                    showMessageDialog(null, "Please select a channel to send the message to.");
+                }
+
             }
         });
 
@@ -130,11 +132,12 @@ public class UserMenuFrame extends JFrame {
         sendTaskButton.addActionListener(new ActionListener() {
             @Override
             public void actionPerformed(ActionEvent e) {
-                // Create a request to get the military list
-                SendMessageToChannel sendMessageToChannel = new SendMessageToChannel(RequestType.REQUEST_TASK, "main",
-                        user.getUsername(), "ola");
-                String jsonRequest = jsonHelper.toJson(new Request<>(RequestType.REQUEST_TASK, sendMessageToChannel));
-                client.sendMessage(jsonRequest);
+                if (channelSelectorComboBox.getSelectedItem() != null) {
+                    String channel = channelSelectorComboBox.getSelectedItem().toString();
+                    openRequestTaskDialog(channel);
+                } else {
+                    showMessageDialog(null, "Please select a channel to send the task to.");
+                }
             }
         });
         channelSelectorComboBox.addActionListener(new ActionListener() {
@@ -164,6 +167,31 @@ public class UserMenuFrame extends JFrame {
         }
 
         requestInbox();
+    }
+
+    protected void openRequestTaskDialog(String channel) {
+        // Open the "Request Task" dialog
+        RequestTaskDialog requestTaskDialog = new RequestTaskDialog(this,
+                channel, user.getUsername());
+
+
+        requestTaskDialog.setVisible(true);
+
+        while (requestTaskDialog.isVisible()) {
+            // Wait until the dialog is closed
+        }
+
+        // Retrieve the created channel from the dialog
+        SendMessageToChannel sendMessageToChannel = requestTaskDialog.getSendMessageToChannel();
+
+        if (sendMessageToChannel != null) {
+            // If the channel is not null, send the request to the server
+            String jsonRequest = jsonHelper
+                    .toJson(new Request<>(RequestType.REQUEST_TASK, sendMessageToChannel));
+            this.client.sendMessage(jsonRequest);
+        } else {
+            System.out.println("null");
+        }
     }
 
     private void requestInbox() {
@@ -198,6 +226,29 @@ public class UserMenuFrame extends JFrame {
         if (sendMessageToUser != null) {
             // If the channel is not null, send the request to the server
             String jsonRequest = jsonHelper.toJson(new Request<>(RequestType.SEND_MESSAGE_TO_USER, sendMessageToUser));
+            this.client.sendMessage(jsonRequest);
+        } else {
+            System.out.println("null");
+        }
+    }
+
+    private void openSendMessageToChannelDialog(String channel) {
+        // Open the "Send Message to Channel" dialog
+        SendMessageToChannelDialog sendMessageToChannelDialog = new SendMessageToChannelDialog(this,
+                channel, user.getUsername());
+        sendMessageToChannelDialog.setVisible(true);
+
+        while (sendMessageToChannelDialog.isVisible()) {
+            // Wait until the dialog is closed
+        }
+
+        // Retrieve the created channel from the dialog
+        SendMessageToChannel sendMessageToChannel = sendMessageToChannelDialog.getSendMessageToChannel();
+
+        if (sendMessageToChannel != null) {
+            // If the channel is not null, send the request to the server
+            String jsonRequest = jsonHelper
+                    .toJson(new Request<>(RequestType.SEND_MESSAGE_TO_CHANNEL, sendMessageToChannel));
             this.client.sendMessage(jsonRequest);
         } else {
             System.out.println("null");
@@ -303,114 +354,63 @@ public class UserMenuFrame extends JFrame {
         mainPanel = new JPanel();
         mainPanel.setLayout(new GridLayoutManager(1, 1, new Insets(0, 0, 0, 0), -1, -1));
         tabbedPane = new JTabbedPane();
-        mainPanel.add(tabbedPane,
-                new GridConstraints(0, 0, 1, 1, GridConstraints.ANCHOR_CENTER, GridConstraints.FILL_BOTH,
-                        GridConstraints.SIZEPOLICY_CAN_SHRINK | GridConstraints.SIZEPOLICY_CAN_GROW,
-                        GridConstraints.SIZEPOLICY_CAN_SHRINK | GridConstraints.SIZEPOLICY_CAN_GROW, null,
-                        new Dimension(200, 200), null, 0, false));
+        mainPanel.add(tabbedPane, new GridConstraints(0, 0, 1, 1, GridConstraints.ANCHOR_CENTER, GridConstraints.FILL_BOTH, GridConstraints.SIZEPOLICY_CAN_SHRINK | GridConstraints.SIZEPOLICY_CAN_GROW, GridConstraints.SIZEPOLICY_CAN_SHRINK | GridConstraints.SIZEPOLICY_CAN_GROW, null, new Dimension(200, 200), null, 0, false));
         messageScreen = new JPanel();
         messageScreen.setLayout(new GridLayoutManager(9, 1, new Insets(0, 0, 0, 0), -1, -1));
         tabbedPane.addTab("Messages", messageScreen);
         final JLabel label1 = new JLabel();
         label1.setText("Channel");
-        messageScreen.add(label1,
-                new GridConstraints(0, 0, 1, 1, GridConstraints.ANCHOR_WEST, GridConstraints.FILL_NONE,
-                        GridConstraints.SIZEPOLICY_FIXED, GridConstraints.SIZEPOLICY_FIXED, null, null, null, 0,
-                        false));
+        messageScreen.add(label1, new GridConstraints(0, 0, 1, 1, GridConstraints.ANCHOR_WEST, GridConstraints.FILL_NONE, GridConstraints.SIZEPOLICY_FIXED, GridConstraints.SIZEPOLICY_FIXED, null, null, null, 0, false));
         final Spacer spacer1 = new Spacer();
-        messageScreen.add(spacer1, new GridConstraints(8, 0, 1, 1, GridConstraints.ANCHOR_CENTER,
-                GridConstraints.FILL_VERTICAL, 1, GridConstraints.SIZEPOLICY_WANT_GROW, null, null, null, 0, false));
+        messageScreen.add(spacer1, new GridConstraints(8, 0, 1, 1, GridConstraints.ANCHOR_CENTER, GridConstraints.FILL_VERTICAL, 1, GridConstraints.SIZEPOLICY_WANT_GROW, null, null, null, 0, false));
         channelSelectorComboBox = new JComboBox();
-        messageScreen.add(channelSelectorComboBox,
-                new GridConstraints(1, 0, 1, 1, GridConstraints.ANCHOR_WEST, GridConstraints.FILL_HORIZONTAL,
-                        GridConstraints.SIZEPOLICY_CAN_GROW, GridConstraints.SIZEPOLICY_FIXED, null, null, null, 0,
-                        false));
+        messageScreen.add(channelSelectorComboBox, new GridConstraints(1, 0, 1, 1, GridConstraints.ANCHOR_WEST, GridConstraints.FILL_HORIZONTAL, GridConstraints.SIZEPOLICY_CAN_GROW, GridConstraints.SIZEPOLICY_FIXED, null, null, null, 0, false));
         final JLabel label2 = new JLabel();
         label2.setText("Direct Messages");
-        messageScreen.add(label2,
-                new GridConstraints(3, 0, 1, 1, GridConstraints.ANCHOR_WEST, GridConstraints.FILL_NONE,
-                        GridConstraints.SIZEPOLICY_FIXED, GridConstraints.SIZEPOLICY_FIXED, null, null, null, 0,
-                        false));
+        messageScreen.add(label2, new GridConstraints(3, 0, 1, 1, GridConstraints.ANCHOR_WEST, GridConstraints.FILL_NONE, GridConstraints.SIZEPOLICY_FIXED, GridConstraints.SIZEPOLICY_FIXED, null, null, null, 0, false));
         final JScrollPane scrollPane1 = new JScrollPane();
-        messageScreen.add(scrollPane1,
-                new GridConstraints(4, 0, 1, 1, GridConstraints.ANCHOR_CENTER, GridConstraints.FILL_BOTH,
-                        GridConstraints.SIZEPOLICY_CAN_SHRINK | GridConstraints.SIZEPOLICY_WANT_GROW,
-                        GridConstraints.SIZEPOLICY_CAN_SHRINK | GridConstraints.SIZEPOLICY_WANT_GROW, null, null, null,
-                        0, false));
+        messageScreen.add(scrollPane1, new GridConstraints(4, 0, 1, 1, GridConstraints.ANCHOR_CENTER, GridConstraints.FILL_BOTH, GridConstraints.SIZEPOLICY_CAN_SHRINK | GridConstraints.SIZEPOLICY_WANT_GROW, GridConstraints.SIZEPOLICY_CAN_SHRINK | GridConstraints.SIZEPOLICY_WANT_GROW, null, null, null, 0, false));
         directMessagesTextArea = new JTextArea();
         directMessagesTextArea.setText("");
         scrollPane1.setViewportView(directMessagesTextArea);
         sendMessageButton = new JButton();
         sendMessageButton.setText("Send Message");
-        messageScreen.add(sendMessageButton,
-                new GridConstraints(5, 0, 1, 1, GridConstraints.ANCHOR_CENTER, GridConstraints.FILL_HORIZONTAL,
-                        GridConstraints.SIZEPOLICY_CAN_SHRINK | GridConstraints.SIZEPOLICY_CAN_GROW,
-                        GridConstraints.SIZEPOLICY_FIXED, null, null, null, 0, false));
+        messageScreen.add(sendMessageButton, new GridConstraints(5, 0, 1, 1, GridConstraints.ANCHOR_CENTER, GridConstraints.FILL_HORIZONTAL, GridConstraints.SIZEPOLICY_CAN_SHRINK | GridConstraints.SIZEPOLICY_CAN_GROW, GridConstraints.SIZEPOLICY_FIXED, null, null, null, 0, false));
         sendMessageToChannelButton = new JButton();
         sendMessageToChannelButton.setText("Send Message to Channel");
-        messageScreen.add(sendMessageToChannelButton,
-                new GridConstraints(6, 0, 1, 1, GridConstraints.ANCHOR_CENTER, GridConstraints.FILL_HORIZONTAL,
-                        GridConstraints.SIZEPOLICY_CAN_SHRINK | GridConstraints.SIZEPOLICY_CAN_GROW,
-                        GridConstraints.SIZEPOLICY_FIXED, null, null, null, 0, false));
+        messageScreen.add(sendMessageToChannelButton, new GridConstraints(6, 0, 1, 1, GridConstraints.ANCHOR_CENTER, GridConstraints.FILL_HORIZONTAL, GridConstraints.SIZEPOLICY_CAN_SHRINK | GridConstraints.SIZEPOLICY_CAN_GROW, GridConstraints.SIZEPOLICY_FIXED, null, null, null, 0, false));
         channelMessagetextArea = new JTextArea();
-        messageScreen.add(channelMessagetextArea,
-                new GridConstraints(2, 0, 1, 1, GridConstraints.ANCHOR_CENTER, GridConstraints.FILL_BOTH,
-                        GridConstraints.SIZEPOLICY_WANT_GROW, GridConstraints.SIZEPOLICY_WANT_GROW, null,
-                        new Dimension(150, 50), null, 0, false));
+        messageScreen.add(channelMessagetextArea, new GridConstraints(2, 0, 1, 1, GridConstraints.ANCHOR_CENTER, GridConstraints.FILL_BOTH, GridConstraints.SIZEPOLICY_WANT_GROW, GridConstraints.SIZEPOLICY_WANT_GROW, null, new Dimension(150, 50), null, 0, false));
         sendTaskButton = new JButton();
         sendTaskButton.setText("Send Task");
-        messageScreen.add(sendTaskButton,
-                new GridConstraints(7, 0, 1, 1, GridConstraints.ANCHOR_CENTER, GridConstraints.FILL_HORIZONTAL,
-                        GridConstraints.SIZEPOLICY_CAN_SHRINK | GridConstraints.SIZEPOLICY_CAN_GROW,
-                        GridConstraints.SIZEPOLICY_FIXED, null, null, null, 0, false));
+        messageScreen.add(sendTaskButton, new GridConstraints(7, 0, 1, 1, GridConstraints.ANCHOR_CENTER, GridConstraints.FILL_HORIZONTAL, GridConstraints.SIZEPOLICY_CAN_SHRINK | GridConstraints.SIZEPOLICY_CAN_GROW, GridConstraints.SIZEPOLICY_FIXED, null, null, null, 0, false));
         channelsScreen = new JPanel();
         channelsScreen.setLayout(new GridLayoutManager(4, 1, new Insets(0, 0, 0, 0), -1, -1));
         tabbedPane.addTab("Channels", channelsScreen);
         final JLabel label3 = new JLabel();
         label3.setText("All Channels");
-        channelsScreen.add(label3,
-                new GridConstraints(0, 0, 1, 1, GridConstraints.ANCHOR_WEST, GridConstraints.FILL_NONE,
-                        GridConstraints.SIZEPOLICY_FIXED, GridConstraints.SIZEPOLICY_FIXED, null, null, null, 0,
-                        false));
+        channelsScreen.add(label3, new GridConstraints(0, 0, 1, 1, GridConstraints.ANCHOR_WEST, GridConstraints.FILL_NONE, GridConstraints.SIZEPOLICY_FIXED, GridConstraints.SIZEPOLICY_FIXED, null, null, null, 0, false));
         joinChannelButton = new JButton();
         joinChannelButton.setText("Join Channel");
-        channelsScreen.add(joinChannelButton,
-                new GridConstraints(2, 0, 1, 1, GridConstraints.ANCHOR_CENTER, GridConstraints.FILL_HORIZONTAL,
-                        GridConstraints.SIZEPOLICY_CAN_SHRINK | GridConstraints.SIZEPOLICY_CAN_GROW,
-                        GridConstraints.SIZEPOLICY_FIXED, null, null, null, 0, false));
+        channelsScreen.add(joinChannelButton, new GridConstraints(2, 0, 1, 1, GridConstraints.ANCHOR_CENTER, GridConstraints.FILL_HORIZONTAL, GridConstraints.SIZEPOLICY_CAN_SHRINK | GridConstraints.SIZEPOLICY_CAN_GROW, GridConstraints.SIZEPOLICY_FIXED, null, null, null, 0, false));
         createChannelButton = new JButton();
         createChannelButton.setText("Create Channel");
-        channelsScreen.add(createChannelButton,
-                new GridConstraints(3, 0, 1, 1, GridConstraints.ANCHOR_CENTER, GridConstraints.FILL_HORIZONTAL,
-                        GridConstraints.SIZEPOLICY_CAN_SHRINK | GridConstraints.SIZEPOLICY_CAN_GROW,
-                        GridConstraints.SIZEPOLICY_FIXED, null, null, null, 0, false));
+        channelsScreen.add(createChannelButton, new GridConstraints(3, 0, 1, 1, GridConstraints.ANCHOR_CENTER, GridConstraints.FILL_HORIZONTAL, GridConstraints.SIZEPOLICY_CAN_SHRINK | GridConstraints.SIZEPOLICY_CAN_GROW, GridConstraints.SIZEPOLICY_FIXED, null, null, null, 0, false));
         channels = new JTextArea();
         channels.setEditable(false);
-        channelsScreen.add(channels,
-                new GridConstraints(1, 0, 1, 1, GridConstraints.ANCHOR_CENTER, GridConstraints.FILL_BOTH,
-                        GridConstraints.SIZEPOLICY_WANT_GROW, GridConstraints.SIZEPOLICY_WANT_GROW, null,
-                        new Dimension(150, 50), null, 0, false));
+        channelsScreen.add(channels, new GridConstraints(1, 0, 1, 1, GridConstraints.ANCHOR_CENTER, GridConstraints.FILL_BOTH, GridConstraints.SIZEPOLICY_WANT_GROW, GridConstraints.SIZEPOLICY_WANT_GROW, null, new Dimension(150, 50), null, 0, false));
         tasksScreen = new JPanel();
         tasksScreen.setLayout(new GridLayoutManager(2, 4, new Insets(0, 0, 0, 0), -1, -1));
         tabbedPane.addTab("Tasks", tasksScreen);
         final JLabel label4 = new JLabel();
         label4.setText("All Tasks");
-        tasksScreen.add(label4,
-                new GridConstraints(0, 0, 1, 1, GridConstraints.ANCHOR_NORTHWEST, GridConstraints.FILL_NONE,
-                        GridConstraints.SIZEPOLICY_FIXED, GridConstraints.SIZEPOLICY_FIXED, null, null, null, 0,
-                        false));
+        tasksScreen.add(label4, new GridConstraints(0, 0, 1, 1, GridConstraints.ANCHOR_NORTHWEST, GridConstraints.FILL_NONE, GridConstraints.SIZEPOLICY_FIXED, GridConstraints.SIZEPOLICY_FIXED, null, null, null, 0, false));
         ValidateButton = new JButton();
         ValidateButton.setText("Validar");
-        tasksScreen.add(ValidateButton,
-                new GridConstraints(1, 0, 1, 4, GridConstraints.ANCHOR_SOUTH, GridConstraints.FILL_HORIZONTAL,
-                        GridConstraints.SIZEPOLICY_CAN_SHRINK | GridConstraints.SIZEPOLICY_CAN_GROW,
-                        GridConstraints.SIZEPOLICY_FIXED, null, null, null, 0, false));
+        tasksScreen.add(ValidateButton, new GridConstraints(1, 0, 1, 4, GridConstraints.ANCHOR_SOUTH, GridConstraints.FILL_HORIZONTAL, GridConstraints.SIZEPOLICY_CAN_SHRINK | GridConstraints.SIZEPOLICY_CAN_GROW, GridConstraints.SIZEPOLICY_FIXED, null, null, null, 0, false));
         allTasksTextArea = new JTextArea();
         allTasksTextArea.setEditable(false);
-        tasksScreen.add(allTasksTextArea,
-                new GridConstraints(0, 1, 1, 1, GridConstraints.ANCHOR_CENTER, GridConstraints.FILL_BOTH,
-                        GridConstraints.SIZEPOLICY_WANT_GROW, GridConstraints.SIZEPOLICY_WANT_GROW, null,
-                        new Dimension(150, 50), null, 0, false));
+        tasksScreen.add(allTasksTextArea, new GridConstraints(0, 1, 1, 1, GridConstraints.ANCHOR_CENTER, GridConstraints.FILL_BOTH, GridConstraints.SIZEPOLICY_WANT_GROW, GridConstraints.SIZEPOLICY_WANT_GROW, null, new Dimension(150, 50), null, 0, false));
     }
 
     /**
@@ -482,7 +482,7 @@ public class UserMenuFrame extends JFrame {
         }
     }
 
-	public void updateInbox(String inboxMessage) {
+    public void updateInbox(String inboxMessage) {
         directMessagesTextArea.append(inboxMessage);
-	}
+    }
 }
