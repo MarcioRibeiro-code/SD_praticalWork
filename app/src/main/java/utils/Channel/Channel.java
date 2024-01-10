@@ -11,6 +11,8 @@ import java.util.UUID;
 import com.google.gson.Gson;
 
 import Entity.MilitarType;
+import utils.Requests.RequestType;
+import utils.Responses.Response;
 
 public class Channel {
     private final String ip;
@@ -56,9 +58,10 @@ public class Channel {
         return authorization;
     }
 
-    public void sendMessage(String userId, String message, MulticastSocket multicastSocket) {
-        SendMessageToChannel sendMessageToChannel = new SendMessageToChannel(message, userId, message);
-        String fullMessage = gson.toJson(sendMessageToChannel);
+    public void sendMessage(RequestType type, String userId, String message, MulticastSocket multicastSocket) {
+        SendMessageToChannel sendMessageToChannel = new SendMessageToChannel(type, name, userId, message);
+
+        String fullMessage = gson.toJson(Response.success(type, sendMessageToChannel));
         byte[] buffer = fullMessage.getBytes();
 
         // Send the message using the multicast socket

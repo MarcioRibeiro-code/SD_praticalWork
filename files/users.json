@@ -6,5 +6,13 @@
     "username": "joao",
     "ID": "9d4efa46-3f66-4b79-9fe1-1f4aee557cdc",
     "profile": null
+  },
+  {
+    "militarType": "SEARGENT",
+    "name": "marcio ribeiro",
+    "password": "$argon2id$v\u003d19$m\u003d15360,t\u003d2,p\u003d1$$1JyETgRkYbWEiihR4s9WqKOEpy8hUrUhHOgRpeq+UW0",
+    "username": "marcio",
+    "ID": "5437a4cc-7368-4b8e-9a80-745095f29a3b",
+    "profile": null
   }
 ]

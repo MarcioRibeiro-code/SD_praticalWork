@@ -1,5 +1,7 @@
 package Server;
 
+import utils.Channel.Channel;
+
 import java.io.*;
 import java.net.Socket;
 import java.util.UUID;
@@ -88,7 +90,7 @@ public class ClientHandler implements Runnable {
 
     /**
      * Function to close BufferedWriter and BufferedReader of a Socket
-     * 
+     *
      * @param socket         conection established with a specific client
      * @param bufferedReader reader of a specific client
      * @param bufferedWriter writer of a specific client
@@ -103,6 +105,23 @@ public class ClientHandler implements Runnable {
 
             if (socket != null)
                 socket.close();
+
+
+            for (Channel channel : this.server.channelManager.getChannels().values()) {
+                if (channel.isUserInChannel(this.protocol.User_ID)) {
+                    channel.leave(this.protocol.User_ID);
+                }
+            }
+            clientHandlers.remove(this);
+
+            //Set referentes to null
+            this.bufferedReader = null;
+            this.bufferedWriter = null;
+            this.socket = null;
+            this.protocol = null;
+            this.server = null;
+
+            Server.getStats().decrementNumberOfConnectedUsers();
         } catch (IOException e) {
             e.printStackTrace();
         }

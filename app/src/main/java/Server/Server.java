@@ -7,8 +7,12 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Objects;
 import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+
+import utils.Stats;
+
 import java.net.MulticastSocket;
 
 import Entity.MilitarType;
@@ -24,9 +28,10 @@ public class Server {
     protected final ChannelManager channelManager;
     private final ArrayListSync<ClientHandler> clientHandlers;
     protected final MulticastSocket multicastSocket;
-    protected HashMap<UUID, List<String>> Inbox;
+    protected ConcurrentHashMap<UUID, ArrayListSync<String>> inbox;
 
     private static final Logger logger = Logger.getLogger(Server.class.getName());
+    private static final Stats stats = new Stats();
 
     public Server(ServerSocket serverSocket) throws IOException {
         this.serverSocket = serverSocket;
@@ -35,7 +40,11 @@ public class Server {
         channelManager.createChannel("main", false, null);
         channelManager.createChannel(MilitarType.CAPE.getTypeString(), true, MilitarType.CAPE);
         channelManager.createChannel(MilitarType.SEARGENT.getTypeString(), true, MilitarType.SEARGENT);
+        Server.getStats().incrementNumberOfChannels();
+        Server.getStats().incrementNumberOfChannels();
+        Server.getStats().incrementNumberOfChannels();
         this.multicastSocket = new MulticastSocket(port);
+        this.inbox = new ConcurrentHashMap<>();
     }
 
     public void startServer() {
@@ -64,9 +73,9 @@ public class Server {
         }
     }
 
-
     /**
      * Getter to return list clientHandlers
+     *
      * @return
      */
     public ArrayListSync<ClientHandler> getClientHandlers() {
@@ -86,7 +95,7 @@ public class Server {
      * }
      * }).start();
      * }
-     * 
+     *
      * public void sendMulticastSeargentMessage(String message) {
      * new Thread(() -> {
      * try {
@@ -104,5 +113,9 @@ public class Server {
     public static void main(String[] args) throws IOException {
         Server server = new Server(new ServerSocket(2048));
         server.startServer();
+    }
+
+    public static Stats getStats() {
+        return stats;
     }
 }
